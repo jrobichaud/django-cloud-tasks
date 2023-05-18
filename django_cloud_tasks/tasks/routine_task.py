@@ -6,7 +6,7 @@ from django.core.cache import cache
 from django_cloud_tasks import models
 from django_cloud_tasks.tasks.task import Task
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class RoutineTask(Task, abc.ABC):
@@ -56,6 +56,10 @@ class RoutineExecutorTask(PipelineDispatcherTask):
         routine.status = models.Routine.Statuses.RUNNING
         routine.save(update_fields=("attempt_count", "status", "updated_at"))
 
+        logger.info(f"Running ruotine: {routine._dict}")
+
+        routine = models.Routine(**routine._dict)
+
         try:
             logger.info(f"Routine #{routine.pk} is running")
             task_response = routine.task_class(metadata=self._metadata).sync(**routine.body)
@@ -65,6 +69,8 @@ class RoutineExecutorTask(PipelineDispatcherTask):
             routine.enqueue()
             logger.info(f"Routine #{routine.pk} has been enqueued for retry")
             return
+
+        logger.info(f"Completing ruotine: {routine._dict}")
 
         routine.complete(output=task_response)
         logger.info(f"Routine #{routine.pk} just completed")
